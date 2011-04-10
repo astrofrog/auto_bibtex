@@ -17,3 +17,8 @@ be included in the LaTeX file with
 
 where custom.bib would contain any references not resolved by ADS.
 
+Notes
+-----
+
+- This script assumes the year is given in 2-digit form, e.g. 83 for 1983
+
