@@ -1,0 +1,19 @@
+Instructions
+------------
+
+This script searches a LaTeX file for citekeys, and tries to match citekeys
+in the form author:year:page to the NASA ADS database. For cite keys that
+successfully resolve to a unique article, the script downloads the BibTeX
+entry and appends it to a file called [original]_auto.bib where [original] is
+the original name of the input file, with the .tex extension stripped. For
+example, the following command
+
+$ python auto_bibtex.py ms.tex
+
+will produce an output file called ms_auto.bib. This bibliography can then
+be included in the LaTeX file with
+
+\bibliography{ms_auto, custom}
+
+where custom.bib would contain any references not resolved by ADS.
+
