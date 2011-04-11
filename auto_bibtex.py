@@ -138,7 +138,7 @@ if "\cite" in text:
             pos2 = text.index('{', pos1)
             pos3 = text.index('}', pos2)
             citekeys = text[pos2 + 1:pos3]
-            all_citekeys += [s.lower() for s in citekeys.split(',')]
+            all_citekeys += citekeys.split(',')
         except ValueError:
             break
 
