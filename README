@@ -1,3 +1,8 @@
+Installation
+------------
+
+$ python setup.py install
+
 Instructions
 ------------
 
@@ -8,7 +13,7 @@ entry and appends it to a file called [original]_auto.bib where [original] is
 the original name of the input file, with the .tex extension stripped. For
 example, the following command
 
-$ python auto_bibtex.py ms.tex
+$ auto_bibtex.py ms.tex
 
 will produce an output file called ms_auto.bib. This bibliography can then
 be included in the LaTeX file with
