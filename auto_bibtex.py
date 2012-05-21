@@ -7,7 +7,7 @@ import string
 from multiprocessing import Pool
 
 # Define base URL for querying the article database
-base_url = 'http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?db_key=AST&'
+base_url = 'http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?db_key=AST&jou_pick=NO&'
 
 # Define base URL for retrieving BibTeX entries
 bibtex_url = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?db_key=AST&data_type=BIBTEX&'
@@ -72,7 +72,7 @@ def query_bibtex(author, year, page):
                 entry[key.strip()] = value.strip()
 
             # If this entry is a match (in terms of page number), keep it
-            if entry['page'] == str(page):
+            if 'page' in entry and entry['page'] == str(page):
                 bibcodes.append(entry['bibcode'])
 
     # Check how many results were returned
@@ -144,6 +144,9 @@ if "\cite" in text:
         except ValueError:
             break
 
+# Remove spaces before and after cite key
+all_citekeys = [citekey.strip() for citekey in all_citekeys]
+
 # Create unique list
 all_citekeys = list(set(all_citekeys))
 
@@ -159,9 +162,12 @@ results = p.map(citekey_to_bibtex, all_citekeys)
 f = open(sys.argv[1].replace('.tex', '_auto.bib'), 'wb')
 
 # Loop through results, and write out
-for entry in results:
+for ie, entry in enumerate(results):
     if entry is not None:
+        print "Retrieved entry for %s" % all_citekeys[ie]
         f.write(entry)
+    else:
+        print "Searching failed for %s" % all_citekeys[ie]
 
 # Close file
 f.close()
