@@ -16,6 +16,18 @@ bibtex_url = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?db_key=AST&data_ty
 format = 'author=%25za1+,+year=%25Y+,+page=%25p+,+bibcode=%25R'
 
 
+def fix_arxiv_entry(entry):
+    if "journal = {ArXiv Astrophysics e-prints}" in entry:
+        return
+    else:
+        entry_new = []
+        for line in entry.split('\n'):
+            if 'eprint =' in line:
+                continue
+            else:
+                entry_new.append(line)
+        return '\n'.join(entry_new)
+
 def get_bibtex(bibcode):
     '''
     Retrieve the BibTeX abstract given by `bibcode`
@@ -165,6 +177,7 @@ f = open(sys.argv[1].replace('.tex', '_auto.bib'), 'wb')
 for ie, entry in enumerate(results):
     if entry is not None:
         print "Retrieved entry for %s" % all_citekeys[ie]
+        entry = fix_arxiv_entry(entry)  # remove unecessary arxiv references
         f.write(entry)
     else:
         print "Searching failed for %s" % all_citekeys[ie]
