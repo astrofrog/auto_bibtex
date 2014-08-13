@@ -2,18 +2,18 @@
 
 import sys
 import warnings
-import urllib
+import requests
 import string
 from multiprocessing import Pool
 
 # Define base URL for querying the article database
-base_url = 'http://adsabs.harvard.edu/cgi-bin/nph-abs_connect?db_key=AST&jou_pick=NO&'
+ADS_URL = "http://adsabs.harvard.edu/cgi-bin/nph-abs_connect"
 
 # Define base URL for retrieving BibTeX entries
-bibtex_url = 'http://adsabs.harvard.edu/cgi-bin/nph-bib_query?db_key=AST&data_type=BIBTEX&'
+BIB_URL = "http://adsabs.harvard.edu/cgi-bin/nph-bib_query"
 
 # Define custom return format for query
-format = 'author=%25za1+,+year=%25Y+,+page=%25p+,+bibcode=%25R'
+format = 'author=%za1,year=%Y,page=%p,bibcode=%R'
 
 
 def fix_arxiv_entry(entry):
@@ -36,12 +36,11 @@ def get_bibtex(bibcode):
     # Set query parameters
     parameters = {}
     parameters['bibcode'] = bibcode
-
-    # Construct query string
-    query = string.join(["%s=%s" % (key, parameters[key]) for key in parameters], "&")
+    parameters['db_key'] = "AST"
+    parameters['data_type'] = "BIBTEX"
 
     # Submit query
-    entry = urllib.urlopen(bibtex_url + query).read()
+    entry = requests.get(BIB_URL, params=parameters).text
 
     # Find where the BibTeX starts
     p1 = entry.index('@')
@@ -63,18 +62,20 @@ def query_bibtex(author, year, page):
     parameters['author'] = "^%s" % author
     parameters['start_year'] = year
     parameters['end_year'] = year
-
-    # Construct query string
-    query = string.join(["%s=%s" % (key, parameters[key]) for key in parameters], "&")
+    parameters['db_key'] = "AST"
+    parameters['jou_pick'] = "NO"
 
     # Submit query
-    f = urllib.urlopen(base_url + query)
+    result = requests.get(ADS_URL, params=parameters)
+    print(result.url)
+    result = result.text
+    # print(result)
 
     # Initalize list of bibcodes
     bibcodes = []
 
     # Loop through results and only look at lines containing a result
-    for line in f.readlines():
+    for line in result.splitlines():
         if 'bibcode=' in line:
 
             # Construct dictionary for this entry
@@ -92,7 +93,7 @@ def query_bibtex(author, year, page):
 
         warnings.warn("No article matches the author/year/page combination")
 
-        return None
+        return ''
 
     elif len(bibcodes) == 1:
 
@@ -108,7 +109,7 @@ def query_bibtex(author, year, page):
 
         warnings.warn("More than one article matches the author/year/page combination")
 
-        return None
+        return ''
 
 
 def citekey_to_bibtex(citekey):
@@ -131,56 +132,63 @@ def citekey_to_bibtex(citekey):
 
     except ValueError:
 
-        return None
+        return ''
 
-# Initalize an empty list to contain all citekeys found in the paper
-all_citekeys = []
+def main(filename):
 
-# Check input file name
-if not sys.argv[1].endswith('.tex'):
-    raise Exception("Input filename should end in .tex")
+    # Initalize an empty list to contain all citekeys found in the paper
+    all_citekeys = []
 
-# Open the input file
-text = open(sys.argv[1], 'rb').read().replace('\n', ' ')
+    # Check input file name
+    if not filename.endswith('.tex'):
+        raise Exception("Input filename should end in .tex")
 
-# Extract all citekeys
-if "\cite" in text:
-    pos1 = -1
-    while True:
-        try:
-            pos1 = text.index('\cite', pos1 + 1)
-            pos2 = text.index('{', pos1)
-            pos3 = text.index('}', pos2)
-            citekeys = text[pos2 + 1:pos3]
-            all_citekeys += citekeys.split(',')
-        except ValueError:
-            break
+    # Open the input file
+    text = open(filename, 'r').read().replace('\n', ' ')
 
-# Remove spaces before and after cite key
-all_citekeys = [citekey.strip() for citekey in all_citekeys]
+    # Extract all citekeys
+    if "\cite" in text:
+        pos1 = -1
+        while True:
+            try:
+                pos1 = text.index('\cite', pos1 + 1)
+                pos2 = text.index('{', pos1)
+                pos3 = text.index('}', pos2)
+                citekeys = text[pos2 + 1:pos3]
+                all_citekeys += citekeys.split(',')
+            except ValueError:
+                break
 
-# Create unique list
-all_citekeys = list(set(all_citekeys))
+    # Remove spaces before and after cite key
+    all_citekeys = [citekey.strip() for citekey in all_citekeys]
 
-# Sort list alphabetically
-all_citekeys.sort()
+    # Create unique list
+    all_citekeys = list(set(all_citekeys))
 
-# Query all the citekeys. We use multiprocessing.Pool to submit many requests
-# at the same time. I'm sure ADS love me for this.
-p = Pool(processes=25)
-results = p.map(citekey_to_bibtex, all_citekeys)
+    # Sort list alphabetically
+    all_citekeys.sort()
 
-# Create output file
-f = open(sys.argv[1].replace('.tex', '_auto.bib'), 'wb')
+    # Query all the citekeys. We use multiprocessing.Pool to submit many requests
+    # at the same time. I'm sure ADS love me for this.
+    p = Pool(processes=12)
+    results = p.map(citekey_to_bibtex, all_citekeys)
 
-# Loop through results, and write out
-for ie, entry in enumerate(results):
-    if entry is not None:
-        print "Retrieved entry for %s" % all_citekeys[ie]
-        entry = fix_arxiv_entry(entry)  # remove unecessary arxiv references
-        f.write(entry)
-    else:
-        print "Searching failed for %s" % all_citekeys[ie]
+    output = ""
+    
+    # Loop through results, and write out
+    for ie, entry in enumerate(sorted(results)):
+        if entry != '':
+            print("Retrieved entry for %s" % all_citekeys[ie])
+            entry = fix_arxiv_entry(entry)  # remove unecessary arxiv references
+            output += entry
+        else:
+            print("Searching failed for %s" % all_citekeys[ie])
 
-# Close file
-f.close()
+    # Create output file
+    with open(filename.replace('.tex', '_auto.bib'), 'w') as f:
+        f.write(output)
+
+    return output
+
+if __name__ == "__main__":
+    main(sys.argv[1])
