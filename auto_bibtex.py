@@ -66,10 +66,7 @@ def query_bibtex(author, year, page):
     parameters['jou_pick'] = "NO"
 
     # Submit query
-    result = requests.get(ADS_URL, params=parameters)
-    print(result.url)
-    result = result.text
-    # print(result)
+    result = requests.get(ADS_URL, params=parameters).text
 
     # Initalize list of bibcodes
     bibcodes = []
